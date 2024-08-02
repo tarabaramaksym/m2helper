@@ -4,7 +4,7 @@
   "publisher": "tarabara",
   "description": "Magento2 helper/utilities VS Code extension.",
   "repository": "tarabaramaksym/m2helper",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "engines": {
     "vscode": "^1.91.0"
   },
