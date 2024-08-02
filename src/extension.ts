@@ -3,8 +3,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { CREATE_INHERITED_CLASS, CREATE_NEW_CLASS } from "constant/choice";
 import { createFile } from 'util/file';
-import { generateClassPHP, generateModuleXML, generateRegistrationPHP } from 'util/content-generator';
+import { generateClassPHP, generateDiXML, generateModuleXML, generateRegistrationPHP } from 'util/content-generator';
 import { parsePath } from 'util/parsers';
+import { InheritedClassChoiceArguments } from 'type/paths.type';
 
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('extension.createPHPClass', handleCommand());
@@ -26,10 +27,11 @@ function handleCommand(): (...args: any[]) => any {
             return;
         }
 
-        const parsedPath = parsePath(inputPath);
-        const { className, appCodePath, packageName } = parsedPath;
+        const inheritedChoice = await handleInheritedChoice(choice);
+        const parsedPath = parsePath(inputPath, inheritedChoice);
+        const { className, appCodePath, packageName, parentClass = '', parentPackage = '' } = parsedPath;
         const phpClassContent = await generateClassPHP(parsedPath, choice);
-        
+
         if (!phpClassContent) {
             return;
         }
@@ -45,7 +47,11 @@ function handleCommand(): (...args: any[]) => any {
         const modulePath = [dirPath[0], dirPath[1]].join('/');
 
         if (!fs.existsSync(modulePath)) {
-            generateModule(modulePath, packageName);
+            generateModule(modulePath, packageName, parentPackage);
+        }
+
+        if (choice === CREATE_INHERITED_CLASS) {
+            generateDi(modulePath, packageName, inputPath, parentClass);
         }
 
         const filePath = path.join(dirPath.join('/'), `${className}.php`);
@@ -72,12 +78,43 @@ async function getInputPath(): Promise<string | undefined> {
     return inputPath;
 }
 
-function generateModule(modulePath: string, packageName: string) {
+async function handleInheritedChoice(choice: string): Promise<InheritedClassChoiceArguments | null> {
+    if (choice !== CREATE_INHERITED_CLASS) {
+        return null;
+    }
+
+    const parentClass = await vscode.window.showInputBox({ prompt: 'Enter the parent class with namespace' });
+
+    if (!parentClass) {
+        vscode.window.showErrorMessage('Parent class cannot be empty.');
+        return null;
+    }
+
+    const parts = parentClass.split('\\');
+    const classPseudonym = `${parts[0]}${parts[parts.length - 1]}`;
+    const parentPackage = `${parts[0]}\\${parts[1]}`;
+
+
+    return {
+        parentClass,
+        classPseudonym,
+        parentPackage
+    };
+}
+
+function generateModule(modulePath: string, packageName: string, parentPackage: string = '') {
     const registration = generateRegistrationPHP(packageName);
-    const module = generateModuleXML(packageName);
+    const module = generateModuleXML(packageName, parentPackage);
 
     createFile(`${modulePath}/registration.php`, registration);
     createFile(`${modulePath}/etc/module.xml`, module);
+}
+
+function generateDi(modulePath: string, packageName: string, classWithNamespace: string, parentClassWithNamespace: string) {
+    const diXmlPath = path.join(modulePath, 'etc', 'di.xml');
+    const diXml = generateDiXML(packageName, diXmlPath, classWithNamespace, parentClassWithNamespace);
+
+    createFile(`${modulePath}/etc/di.xml`, diXml);
 }
 
 export function deactivate() { }
