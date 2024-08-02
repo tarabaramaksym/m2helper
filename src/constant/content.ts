@@ -27,8 +27,21 @@ ${DOC}
 -->
 `;
 
+export const SEQUENCE = `
+        <sequence>
+            <module name="<ParentPackage>"/>
+        </sequence>`;
+
 export const MODULE = `<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
-    <module name="<Package>">
+    <module name="<Package>">${SEQUENCE}
     </module>
 </config>
 `;
+
+export const PREFERENCE = `<preference for="<ParentClass>" type="<Class>" />`;
+
+export const DI = `<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    ${PREFERENCE}
+</config>
+`;
+
