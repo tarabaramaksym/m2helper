@@ -4,6 +4,7 @@ import { DI, MODULE, PHP_INTRO, PREFERENCE, REGISTRATION, SEQUENCE, XML_INTRO } 
 import { InheritedClassChoiceArguments, PathArguments } from 'type/paths.type';
 import { CREATE_INHERITED_CLASS } from 'constant/choice';
 import { lastIndexOf } from './string';
+import { CLASS_PROPERTIES } from 'constant/classes';
 
 function prepareIntro(intro: string, packageName: string) {
     return intro.replace('<Package>', packageName);
@@ -73,4 +74,15 @@ export function generateRegistrationPHP(packageName: string): string {
     return `${getPhpIntro(packageName)}\n${REGISTRATION.replace('<Package>', packageName.replace('\\', '_'))}`;
 }
 
+export function generateProperty(filePath: string, choice: string): string {
+    const fileContents = fs.readFileSync(filePath).toString();
+    const lastUseMatch = lastIndexOf(fileContents, /use\s+.*?;\s*/g);
 
+    if (!lastUseMatch) {
+        return fileContents;
+    }
+
+    const insertionPoint = lastUseMatch.index + lastUseMatch[0].length - 1;
+
+    return fileContents.slice(0, insertionPoint) + `use ${CLASS_PROPERTIES[choice].namespace};\n` + fileContents.slice(insertionPoint);
+}
