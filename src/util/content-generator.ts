@@ -75,14 +75,30 @@ export function generateRegistrationPHP(packageName: string): string {
 }
 
 export function generateProperty(filePath: string, choice: string): string {
-    const fileContents = fs.readFileSync(filePath).toString();
+    let fileContents = fs.readFileSync(filePath).toString();
     const lastUseMatch = lastIndexOf(fileContents, /use\s+.*?;\s*/g);
+    const { namespace, className } = CLASS_PROPERTIES[choice];
 
     if (!lastUseMatch) {
         return fileContents;
     }
 
     const insertionPoint = lastUseMatch.index + lastUseMatch[0].length - 1;
+    fileContents = fileContents.slice(0, insertionPoint) + `use ${namespace};\n` + fileContents.slice(insertionPoint);
 
-    return fileContents.slice(0, insertionPoint) + `use ${CLASS_PROPERTIES[choice].namespace};\n` + fileContents.slice(insertionPoint);
+    const constructorPattern = /\/\*\*(?:(?!\*\/)[\s\S])*?\*\/\s+public function __construct/g;
+    const match = fileContents.match(constructorPattern);
+
+    if (match) {
+        const insertPosition = fileContents.lastIndexOf(match[0]);
+        if (insertPosition !== -1) {
+            const beforeConstructor = fileContents.slice(0, insertPosition);
+            const afterConstructor = fileContents.slice(insertPosition);
+
+            const newProperty = `protected ${className} $${className[0].toLowerCase()}${className.slice(1)};\n\n    `;
+            fileContents = beforeConstructor + newProperty + afterConstructor;
+        }
+    }
+
+    return fileContents;
 }
