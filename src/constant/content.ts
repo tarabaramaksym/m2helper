@@ -45,3 +45,15 @@ export const DI = `<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 </config>
 `;
 
+
+export const PARAM_DOC_BLOCK = `
+    /**
+     * @param <Class> $<Property>
+    */`;
+
+export const BASE_CONSTRUCTOR = `${PARAM_DOC_BLOCK}
+    public function __construct(
+        <Class> $<Property>,
+    ) {
+        $this-><Property> = $<Property>;
+    }`;

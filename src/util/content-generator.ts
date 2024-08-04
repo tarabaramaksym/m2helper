@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import { DI, MODULE, PHP_INTRO, PREFERENCE, REGISTRATION, SEQUENCE, XML_INTRO } from 'constant/content';
+import { BASE_CONSTRUCTOR, DI, MODULE, PARAM_DOC_BLOCK, PHP_INTRO, PREFERENCE, REGISTRATION, SEQUENCE, XML_INTRO } from 'constant/content';
 import { InheritedClassChoiceArguments, PathArguments } from 'type/paths.type';
 import { CREATE_INHERITED_CLASS } from 'constant/choice';
 import { lastIndexOf } from './string';
@@ -76,7 +76,8 @@ export function generateRegistrationPHP(packageName: string): string {
 
 export function generateProperty(filePath: string, choice: string): string {
     let fileContents = fs.readFileSync(filePath).toString();
-    const lastUseMatch = lastIndexOf(fileContents, /use\s+.*?;\s*/g);
+    const indexOfLastUse = lastIndexOf(fileContents, /use\s+.*?;\s*/g);
+    const lastUseMatch = indexOfLastUse ?? lastIndexOf(fileContents, /namespace\s+.*?;\s*/g);
     const { namespace, className } = CLASS_PROPERTIES[choice];
 
     if (!lastUseMatch) {
@@ -84,19 +85,62 @@ export function generateProperty(filePath: string, choice: string): string {
     }
 
     const insertionPoint = lastUseMatch.index + lastUseMatch[0].length - 1;
-    fileContents = fileContents.slice(0, insertionPoint) + `use ${namespace};\n` + fileContents.slice(insertionPoint);
+    fileContents = fileContents.slice(0, insertionPoint) + `${indexOfLastUse ? '' : '\n'}use ${namespace};\n` + fileContents.slice(insertionPoint);
 
     const constructorPattern = /\/\*\*(?:(?!\*\/)[\s\S])*?\*\/\s+public function __construct/g;
     const match = fileContents.match(constructorPattern);
+    const property = `${className[0].toLowerCase()}${className.slice(1)}`.replace('Interface', '');
+    const newProperty = `protected ${className} $${property};\n`;
 
     if (match) {
         const insertPosition = fileContents.lastIndexOf(match[0]);
+
         if (insertPosition !== -1) {
             const beforeConstructor = fileContents.slice(0, insertPosition);
             const afterConstructor = fileContents.slice(insertPosition);
 
-            const newProperty = `protected ${className} $${className[0].toLowerCase()}${className.slice(1)};\n\n    `;
-            fileContents = beforeConstructor + newProperty + afterConstructor;
+            fileContents = beforeConstructor + newProperty + '\n    ' + afterConstructor;
+
+            let docBlock = `@param ${className} $${property}`;
+            const parameter = `${className} $${property},\n`;
+            const propertyInit = `    $this->${property} = $${property};`;
+
+            const constructorParamsPattern = /public\s+function\s+__construct\s*\(([\s\S]*?)\)/;
+            const constructorParamsMatch = fileContents.match(constructorParamsPattern);
+
+            // Regex to match the entire constructor method
+            const constructorBodyPattern = /public\s+function\s+__construct\s*\([\s\S]*?\)\s*\{([\s\S]*?)\}/;
+            const constructorBodyMatch = fileContents.match(constructorBodyPattern);
+
+            if (constructorParamsMatch && constructorBodyMatch) {
+                const newParams = `    ${constructorParamsMatch[1]}    ${parameter}`;
+                const newBody = `    ${constructorBodyMatch[1].trim()}\n    ${propertyInit}`;
+
+                fileContents = fileContents.replace(constructorBodyPattern, `public function __construct(${newParams}    ) {\n    ${newBody}\n    }`);
+            }
+        }
+    } else {
+        const classOpeningPattern = /class\s+\w+(\s+extends\s+\w+)?(\s+implements\s+\w+(,\s*\w+)*)?\s*\{/g;
+        const match = fileContents.match(classOpeningPattern);
+
+        if (!match) {
+            vscode.window.showErrorMessage('Wrong path');
+            return fileContents;
+        }
+
+        const insertPosition = fileContents.indexOf(match[0]) + match[0].length;
+
+        if (!insertPosition) {
+            vscode.window.showErrorMessage(`${insertPosition}`);
+            return fileContents;
+        }
+
+        if (insertPosition !== -1) {
+            const beforeOpening = fileContents.slice(0, insertPosition);
+            const afterOpening = fileContents.slice(insertPosition);
+            const constructor = `\n    ${newProperty}${BASE_CONSTRUCTOR.replace(/<Property>/g, property).replace(/<Class>/g, className)}`;
+
+            fileContents = beforeOpening + constructor + afterOpening;
         }
     }
 

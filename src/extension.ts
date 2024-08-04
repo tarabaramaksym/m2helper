@@ -78,6 +78,7 @@ async function handleAddPropertyChoice() {
         return;
     }
 
+    await vscode.commands.executeCommand('workbench.action.files.save');
     const editor = vscode.window.activeTextEditor;
 
     if (!editor) {
@@ -96,6 +97,14 @@ async function handleAddPropertyChoice() {
     const contents = generateProperty(filePath, choice);
 
     fs.writeFileSync(filePath, contents);
+
+    // TODO: Figure out how to format code without bugs
+    // setTimeout(async () => {
+    //     vscode.window.showErrorMessage('Formatted');
+    //     await vscode.commands.executeCommand('editor.action.formatDocument');
+    //     await vscode.commands.executeCommand('workbench.action.files.save');
+
+    // }, 1000);
 }
 
 async function showChoice(): Promise<string | undefined> {
