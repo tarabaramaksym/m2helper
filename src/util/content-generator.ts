@@ -74,6 +74,7 @@ export function generateRegistrationPHP(packageName: string): string {
     return `${getPhpIntro(packageName)}\n${REGISTRATION.replace('<Package>', packageName.replace('\\', '_'))}`;
 }
 
+// TODO! Refactor this shit
 export function generateProperty(filePath: string, choice: string): string {
     let fileContents = fs.readFileSync(filePath).toString();
     const indexOfLastUse = lastIndexOf(fileContents, /use\s+.*?;\s*/g);
@@ -87,7 +88,7 @@ export function generateProperty(filePath: string, choice: string): string {
     const insertionPoint = lastUseMatch.index + lastUseMatch[0].length - 1;
     fileContents = fileContents.slice(0, insertionPoint) + `${indexOfLastUse ? '' : '\n'}use ${namespace};\n` + fileContents.slice(insertionPoint);
 
-    const constructorPattern = /\/\*\*(?:(?!\*\/)[\s\S])*?\*\/\s+public function __construct/g;
+    const constructorPattern = /(?:\/\*\*(?:(?!\*\/)[\s\S])*?\*\/\s*)?public function __construct/g;;
     const match = fileContents.match(constructorPattern);
     const property = `${className[0].toLowerCase()}${className.slice(1)}`.replace('Interface', '');
     const newProperty = `protected ${className} $${property};\n`;
@@ -95,28 +96,45 @@ export function generateProperty(filePath: string, choice: string): string {
     if (match) {
         const insertPosition = fileContents.lastIndexOf(match[0]);
 
-        if (insertPosition !== -1) {
-            const beforeConstructor = fileContents.slice(0, insertPosition);
-            const afterConstructor = fileContents.slice(insertPosition);
+        if (insertPosition === -1) {
+            return fileContents;
+        }
 
-            fileContents = beforeConstructor + newProperty + '\n    ' + afterConstructor;
+        const beforeConstructor = fileContents.slice(0, insertPosition);
+        const afterConstructor = fileContents.slice(insertPosition);
 
-            let docBlock = `@param ${className} $${property}`;
-            const parameter = `${className} $${property},\n`;
-            const propertyInit = `    $this->${property} = $${property};`;
+        fileContents = beforeConstructor + newProperty + '\n    ' + afterConstructor;
 
-            const constructorParamsPattern = /public\s+function\s+__construct\s*\(([\s\S]*?)\)/;
-            const constructorParamsMatch = fileContents.match(constructorParamsPattern);
+        const parameter = `${className} $${property},\n`;
+        const propertyInit = `    $this->${property} = $${property};`;
 
-            // Regex to match the entire constructor method
-            const constructorBodyPattern = /public\s+function\s+__construct\s*\([\s\S]*?\)\s*\{([\s\S]*?)\}/;
-            const constructorBodyMatch = fileContents.match(constructorBodyPattern);
+        const constructorParamsPattern = /public\s+function\s+__construct\s*\(([\s\S]*?)\)/;
+        const constructorParamsMatch = fileContents.match(constructorParamsPattern);
 
-            if (constructorParamsMatch && constructorBodyMatch) {
-                const newParams = `    ${constructorParamsMatch[1]}    ${parameter}`;
-                const newBody = `    ${constructorBodyMatch[1].trim()}\n    ${propertyInit}`;
+        const constructorBodyPattern = /public\s+function\s+__construct\s*\([\s\S]*?\)\s*\{([\s\S]*?)\}/;
+        const constructorBodyMatch = fileContents.match(constructorBodyPattern);
 
-                fileContents = fileContents.replace(constructorBodyPattern, `public function __construct(${newParams}    ) {\n    ${newBody}\n    }`);
+        if (constructorParamsMatch && constructorBodyMatch) {
+            const newParams = `    ${constructorParamsMatch[1]}    ${parameter}`;
+            const newBody = `    ${constructorBodyMatch[1].trim()}\n    ${propertyInit}`;
+
+            fileContents = fileContents.replace(constructorBodyPattern, `public function __construct(${newParams}    ) {\n    ${newBody}\n    }`);
+
+            const docBlockPattern = /\/\*\*[\s\S]*?\*\/\n\s*public\s+function\s+__construct/;
+            const docBlockMatch = fileContents.match(docBlockPattern);
+
+            if (docBlockMatch) {
+                const lastParamIndex = docBlockMatch[0].lastIndexOf('@param');
+                const afterLastParamIndex = docBlockMatch[0].indexOf('\n', lastParamIndex) + 1;
+                const beforeParam = docBlockMatch[0].slice(0, afterLastParamIndex);
+                const afterParam = docBlockMatch[0].slice(afterLastParamIndex);
+
+                const newDocBlock = beforeParam + `     * @param ${className} $${property}\n` + afterParam;
+                fileContents = fileContents.replace(docBlockMatch[0], newDocBlock);
+            } else {
+                const constructorIndex = fileContents.indexOf('public function __construct');
+                const newDocBlock = `/**\n    * @param ${className} $${property}\n    */\n    `;
+                fileContents = fileContents.slice(0, constructorIndex) + newDocBlock + fileContents.slice(constructorIndex);
             }
         }
     } else {
