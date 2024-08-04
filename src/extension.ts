@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { CREATE_INHERITED_CLASS, CREATE_NEW_CLASS } from "constant/choice";
+import { ADD_PROPERTY_TO_CLASS, CREATE_INHERITED_CLASS, CREATE_NEW_CLASS } from "constant/choice";
 import { createFile } from 'util/file';
-import { generateClassPHP, generateDiXML, generateModuleXML, generateRegistrationPHP } from 'util/content-generator';
+import { generateClassPHP, generateDiXML, generateModuleXML, generateProperty, generateRegistrationPHP } from 'util/content-generator';
 import { parsePath } from 'util/parsers';
 import { InheritedClassChoiceArguments } from 'type/paths.type';
+import { CLASS_PROPERTIES } from 'constant/classes';
 
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('extension.createPHPClass', handleCommand());
@@ -18,6 +19,11 @@ function handleCommand(): (...args: any[]) => any {
         const choice = await showChoice();
 
         if (!choice) {
+            return;
+        }
+
+        if (choice === ADD_PROPERTY_TO_CLASS) {
+            await handleAddPropertyChoice();
             return;
         }
 
@@ -62,8 +68,47 @@ function handleCommand(): (...args: any[]) => any {
     };
 }
 
+async function handleAddPropertyChoice() {
+    const choice = await vscode.window.showQuickPick(Object.keys(CLASS_PROPERTIES), {
+        placeHolder: 'Choose an option'
+    });
+
+    if (!choice) {
+        vscode.window.showErrorMessage('Property was not selected');
+        return;
+    }
+
+    await vscode.commands.executeCommand('workbench.action.files.save');
+    const editor = vscode.window.activeTextEditor;
+
+    if (!editor) {
+        vscode.window.showErrorMessage('No active editor');
+        return;
+    }
+
+    const document = editor.document;
+    const filePath = document.uri.fsPath;
+
+    if (!filePath) {
+        vscode.window.showErrorMessage('File is not opened');
+        return;
+    }
+
+    const contents = generateProperty(filePath, choice);
+
+    fs.writeFileSync(filePath, contents);
+
+    // TODO: Figure out how to format code without bugs
+    // setTimeout(async () => {
+    //     vscode.window.showErrorMessage('Formatted');
+    //     await vscode.commands.executeCommand('editor.action.formatDocument');
+    //     await vscode.commands.executeCommand('workbench.action.files.save');
+
+    // }, 1000);
+}
+
 async function showChoice(): Promise<string | undefined> {
-    return vscode.window.showQuickPick([CREATE_NEW_CLASS, CREATE_INHERITED_CLASS], {
+    return vscode.window.showQuickPick([CREATE_NEW_CLASS, CREATE_INHERITED_CLASS, ADD_PROPERTY_TO_CLASS], {
         placeHolder: 'Choose an option'
     });
 }
