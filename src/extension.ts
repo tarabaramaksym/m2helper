@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { ADD_PROPERTY_TO_CLASS, CREATE_INHERITED_CLASS, CREATE_NEW_CLASS } from "constant/choice";
+import { ADD_PROPERTY_TO_CLASS, CREATE_INHERITED_CLASS, CREATE_NEW_CLASS, INPUT_CUSTOM_PROPERTY_NAMESPACE } from "constant/choice";
 import { createFile } from 'util/file';
 import { generateClassPHP, generateDiXML, generateModuleXML, generateProperty, generateRegistrationPHP } from 'util/content-generator';
 import { parsePath } from 'util/parsers';
@@ -69,7 +69,7 @@ function handleCommand(): (...args: any[]) => any {
 }
 
 async function handleAddPropertyChoice() {
-    const choice = await vscode.window.showQuickPick(Object.keys(CLASS_PROPERTIES), {
+    const choice = await vscode.window.showQuickPick([INPUT_CUSTOM_PROPERTY_NAMESPACE, ...Object.keys(CLASS_PROPERTIES)], {
         placeHolder: 'Choose an option'
     });
 
@@ -78,7 +78,28 @@ async function handleAddPropertyChoice() {
         return;
     }
 
-    await vscode.commands.executeCommand('workbench.action.files.save');
+    let choiceData = null;
+
+    if (choice === INPUT_CUSTOM_PROPERTY_NAMESPACE) {
+        const namespace = await vscode.window.showInputBox({ prompt: 'Enter class with the namespace (you can write "as Pseudonym" at the end)' });
+
+        if (!namespace) {
+            vscode.window.showErrorMessage('Namespace was not inputted');
+            return;
+        }
+
+        const splitted = namespace.split(' ');
+        const className = splitted.length > 1 ? splitted[splitted.length - 1] : namespace.substring(namespace.lastIndexOf('\\') + 1);
+
+        choiceData = {
+            namespace,
+            className
+        };
+    } else {
+        choiceData = CLASS_PROPERTIES['choice'];
+    }
+
+    {await vscode.commands.executeCommand('workbench.action.files.save');}
     const editor = vscode.window.activeTextEditor;
 
     if (!editor) {
@@ -94,7 +115,7 @@ async function handleAddPropertyChoice() {
         return;
     }
 
-    const contents = generateProperty(filePath, choice);
+    const contents = generateProperty(filePath, choiceData);
 
     fs.writeFileSync(filePath, contents);
 
@@ -114,7 +135,7 @@ async function showChoice(): Promise<string | undefined> {
 }
 
 async function getInputPath(): Promise<string | undefined> {
-    const inputPath = await vscode.window.showInputBox({ prompt: 'Enter the path (relative to app/code)' });
+    const inputPath = await vscode.window.showInputBox({ prompt: 'Enter the class with namespace' });
 
     if (!inputPath) {
         vscode.window.showErrorMessage('Path cannot be empty.');

@@ -4,7 +4,6 @@ import { BASE_CONSTRUCTOR, DI, MODULE, PARAM_DOC_BLOCK, PHP_INTRO, PREFERENCE, R
 import { InheritedClassChoiceArguments, PathArguments } from 'type/paths.type';
 import { CREATE_INHERITED_CLASS } from 'constant/choice';
 import { lastIndexOf } from './string';
-import { CLASS_PROPERTIES } from 'constant/classes';
 
 function prepareIntro(intro: string, packageName: string) {
     return intro.replace('<Package>', packageName);
@@ -29,7 +28,7 @@ export async function generateClassPHP({ className, namespace, packageName, clas
         phpClassContent += `\nclass ${className}`;
     }
 
-    phpClassContent += `\n{\n    // Your code here\n}\n`;
+    phpClassContent += `\n{\n}\n`;
 
     return phpClassContent;
 }
@@ -75,11 +74,11 @@ export function generateRegistrationPHP(packageName: string): string {
 }
 
 // TODO! Refactor this shit
-export function generateProperty(filePath: string, choice: string): string {
+export function generateProperty(filePath: string, choiceData: { namespace: string, className: string }): string {
     let fileContents = fs.readFileSync(filePath).toString();
     const indexOfLastUse = lastIndexOf(fileContents, /use\s+.*?;\s*/g);
     const lastUseMatch = indexOfLastUse ?? lastIndexOf(fileContents, /namespace\s+.*?;\s*/g);
-    const { namespace, className } = CLASS_PROPERTIES[choice];
+    const { namespace, className } = choiceData;
 
     if (!lastUseMatch) {
         return fileContents;
@@ -91,7 +90,7 @@ export function generateProperty(filePath: string, choice: string): string {
     const constructorPattern = /(?:\/\*\*(?:(?!\*\/)[\s\S])*?\*\/\s*)?public function __construct/g;;
     const match = fileContents.match(constructorPattern);
     const property = `${className[0].toLowerCase()}${className.slice(1)}`.replace('Interface', '');
-    const newProperty = `protected ${className} $${property};\n`;
+    const newProperty = fileContents.indexOf('@var') !== -1 ? `/**\n     * @var ${className} $${property}\n     */\n    protected $${property};\n` : `protected ${className} $${property};\n`;
 
     if (match) {
         const insertPosition = fileContents.lastIndexOf(match[0]);
