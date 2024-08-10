@@ -96,10 +96,9 @@ async function handleAddPropertyChoice() {
             className
         };
     } else {
-        choiceData = CLASS_PROPERTIES['choice'];
+        choiceData = CLASS_PROPERTIES[choice];
     }
 
-    {await vscode.commands.executeCommand('workbench.action.files.save');}
     const editor = vscode.window.activeTextEditor;
 
     if (!editor) {
