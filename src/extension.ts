@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ADD_PROPERTY_TO_CLASS, CREATE_INHERITED_CLASS, CREATE_NEW_CLASS, INPUT_CUSTOM_PROPERTY_NAMESPACE } from "constant/choice";
-import { createFile } from 'util/file';
-import { generateClassPHP, generateDiXML, generateModuleXML, generateProperty, generateRegistrationPHP } from 'util/content-generator';
-import { parsePath } from 'util/parsers';
+import { createFile } from 'Util/file';
+import { generateClassPHP, generateDiXML, generateModuleXML, generateProperty, generateRegistrationPHP } from 'Util/content-generator';
+import { parsePath } from 'Util/parsers';
 import { InheritedClassChoiceArguments } from 'type/paths.type';
 import { CLASS_PROPERTIES } from 'constant/classes';
 

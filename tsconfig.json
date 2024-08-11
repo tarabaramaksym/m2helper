@@ -13,8 +13,9 @@
 		"baseUrl": "./src",
 		"paths": {
 			"constant/*": ["constant/*"],
-			"util/*": ["util/*"],
-			"type/*": ["type/*"]
+			"Util/*": ["util/*"],
+			"type/*": ["type/*"],
+			"Processor/*": ["processor/*"]
 		}
 	},
 	"include": ["src"],
