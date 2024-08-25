@@ -8,13 +8,16 @@ interface PhpClassContentStatusProperties {
     constructorEnd: number,
     constructorDocStart: number,
     constructorDocEnd: number,
-    classStart: number
+    constructorArgStart: number,
+    classStart: number,
 }
 
 export class PhpClassProcessor extends BaseProcessor {
     classProperties!: Array<string>;
     useNamespaces!: Array<string>;
-    // constructorBody: Array<string>;
+    constructDocArgProperties!: Array<string>;
+    constructArgProperties!: Array<string>;
+    constructBodyProperties!: Array<string>;
     classContentStatusProperties!: PhpClassContentStatusProperties;
 
     constructor(filePath = '') {
@@ -26,6 +29,9 @@ export class PhpClassProcessor extends BaseProcessor {
     initializeProperties() {
         this.classContentStatusProperties = this.initializeClassContentStatusProperties();
         this.classProperties = this.initializeClassProperties();
+        this.constructDocArgProperties = this.initializeConstructDocArgProperties();
+        this.constructArgProperties = this.initializeConstructArgProperties();
+        this.constructBodyProperties = this.initializeConstructBodyProperties();
         this.useNamespaces = this.initializeUseNamespaces();
     }
 
@@ -55,7 +61,8 @@ export class PhpClassProcessor extends BaseProcessor {
             constructorEnd = -1,
             constructorDocStart = -1,
             constructorDocEnd = -1,
-            classStart = -1;
+            classStart = -1,
+            constructorArgStart = -1;
 
         for (let i = 0; i < contentLines.length; i++) {
             const element = contentLines[i];
@@ -114,7 +121,8 @@ export class PhpClassProcessor extends BaseProcessor {
             constructorEnd,
             constructorDocStart,
             constructorDocEnd,
-            classStart
+            classStart,
+            constructorArgStart
         };
     }
 
@@ -131,6 +139,57 @@ export class PhpClassProcessor extends BaseProcessor {
         }
 
         return this.contentLines.slice(classStart + 2, propertiesEnd);
+    }
+
+    private initializeConstructDocArgProperties() {
+        const {
+            constructorDocStart,
+            constructorDocEnd
+        } = this.classContentStatusProperties;
+
+        if (constructorDocStart === -1 || constructorDocEnd === -1) {
+            return [];
+        }
+
+        return this.contentLines.slice(constructorDocStart, constructorDocEnd);
+    }
+
+    private initializeConstructArgProperties() {
+        const {
+            constructorStart,
+        } = this.classContentStatusProperties;
+
+        if (constructorStart === -1) {
+            return [];
+        }
+
+        let constructorArgStart = constructorStart;
+
+        while (this.contentLines[constructorArgStart - 1].indexOf('(') === -1) {
+            constructorArgStart--;
+        }
+
+        this.classContentStatusProperties.constructorArgStart = constructorArgStart;
+
+        return this.contentLines.slice(constructorArgStart - 1, constructorStart - 1);
+    }
+
+    private initializeConstructBodyProperties() {
+        const {
+            constructorStart
+        } = this.classContentStatusProperties;
+
+        if (constructorStart === -1 || constructorStart === -1) {
+            return [];
+        }
+
+        let constructBodyEnd = constructorStart;
+
+        while (this.contentLines[constructBodyEnd].indexOf('}') === -1) {
+            constructBodyEnd++;
+        }
+
+        return this.contentLines.slice(constructorStart, constructBodyEnd);
     }
 
     private initializeUseNamespaces() {

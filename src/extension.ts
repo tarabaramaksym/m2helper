@@ -7,6 +7,7 @@ import { generateClassPHP, generateDiXML, generateModuleXML, generateProperty, g
 import { parsePath } from 'Util/parsers';
 import { InheritedClassChoiceArguments } from 'type/paths.type';
 import { CLASS_PROPERTIES } from 'constant/classes';
+import { PhpClassBuilder } from './builder/PhpClassBuilder';
 
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('extension.createPHPClass', handleCommand());
@@ -81,20 +82,14 @@ async function handleAddPropertyChoice() {
     let choiceData = null;
 
     if (choice === INPUT_CUSTOM_PROPERTY_NAMESPACE) {
-        const namespace = await vscode.window.showInputBox({ prompt: 'Enter class with the namespace (you can write "as Pseudonym" at the end)' });
+        choiceData = await vscode.window.showInputBox({ prompt: 'Enter class with the namespace (you can write "as Pseudonym" at the end)' });
 
-        if (!namespace) {
+        if (!choiceData) {
             vscode.window.showErrorMessage('Namespace was not inputted');
             return;
         }
 
-        const splitted = namespace.split(' ');
-        const className = splitted.length > 1 ? splitted[splitted.length - 1] : namespace.substring(namespace.lastIndexOf('\\') + 1);
-
-        choiceData = {
-            namespace,
-            className
-        };
+        choiceData = choiceData.trim();
     } else {
         choiceData = CLASS_PROPERTIES[choice];
     }
@@ -106,25 +101,17 @@ async function handleAddPropertyChoice() {
         return;
     }
 
-    const document = editor.document;
-    const filePath = document.uri.fsPath;
+    const filePath = editor.document.uri.fsPath;
 
     if (!filePath) {
         vscode.window.showErrorMessage('File is not opened');
         return;
     }
 
-    const contents = generateProperty(filePath, choiceData);
+    const builder = new PhpClassBuilder(filePath);
+    builder.addProperty(choiceData);
 
-    fs.writeFileSync(filePath, contents);
-
-    // TODO: Figure out how to format code without bugs
-    // setTimeout(async () => {
-    //     vscode.window.showErrorMessage('Formatted');
-    //     await vscode.commands.executeCommand('editor.action.formatDocument');
-    //     await vscode.commands.executeCommand('workbench.action.files.save');
-
-    // }, 1000);
+    fs.writeFileSync(filePath, builder.toString());
 }
 
 async function showChoice(): Promise<string | undefined> {

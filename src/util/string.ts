@@ -28,3 +28,15 @@ export function findLastIndexOfStrInArray(arr: Array<string>, str: string): numb
         }
     }
 }
+
+export const t4 = (str: string) => {
+    return `    ${str}`;
+};
+
+export const t5 = (str: string) => {
+    return `     ${str}`;
+};
+
+export const t8 = (str: string) => {
+    return `        ${str}`;
+};
