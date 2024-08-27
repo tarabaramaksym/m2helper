@@ -15,7 +15,11 @@ module.exports = {
             constant: path.resolve(__dirname, 'src/constant'),
             type: path.resolve(__dirname, 'src/type'),
             Util: path.resolve(__dirname, 'src/util'),
-            Processor: path.resolve(__dirname, 'src/processor')
+            Processor: path.resolve(__dirname, 'src/processor'),
+            Builder: path.resolve(__dirname, 'src/builder'),
+            Initializer: path.resolve(__dirname, 'src/initializer'),
+            InitializerContent: path.resolve(__dirname, 'src/initializer/content'),
+            InitializerFile: path.resolve(__dirname, 'src/initializer/file')
         }
     },
     module: {

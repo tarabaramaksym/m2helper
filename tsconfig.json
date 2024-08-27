@@ -15,7 +15,11 @@
 			"constant/*": ["constant/*"],
 			"Util/*": ["util/*"],
 			"type/*": ["type/*"],
-			"Processor/*": ["processor/*"]
+			"Processor/*": ["processor/*"],
+			"Builder/*": ["builder/*"],
+			"Initializer/*": ["initializer/*"],
+			"InitializerContent/*": ["initializer/content/*"],
+			"InitializerFile/*": ["initializer/file/*"]
 		}
 	},
 	"include": ["src"],

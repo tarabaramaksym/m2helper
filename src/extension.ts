@@ -4,18 +4,19 @@ import * as fs from 'fs';
 import { ADD_PROPERTY_TO_CLASS, CREATE_INHERITED_CLASS, CREATE_NEW_CLASS, INPUT_CUSTOM_PROPERTY_NAMESPACE } from "constant/choice";
 import { createFile } from 'Util/file';
 import { generateClassPHP, generateDiXML, generateModuleXML, generateProperty, generateRegistrationPHP } from 'Util/content-generator';
-import { parsePath } from 'Util/parsers';
-import { InheritedClassChoiceArguments } from 'type/paths.type';
 import { CLASS_PROPERTIES } from 'constant/classes';
-import { PhpClassBuilder } from './builder/PhpClassBuilder';
+import { PhpClassBuilder } from 'Builder/PhpClassBuilder';
+import { PhpClassInitializer } from 'InitializerFile/PhpClassInitializer';
+import { PhpClassHighlighter } from './highlighter/PhpClassHighlighter';
 
 export function activate(context: vscode.ExtensionContext) {
-    let disposable = vscode.commands.registerCommand('extension.createPHPClass', handleCommand());
+    let createPHPClassDisposable = vscode.commands.registerCommand('extension.createPHPClass', handleCreatePHPClassCommand());
+    let highlightPhpClassDisposable = vscode.commands.registerCommand('extension.highlightPhpClass', handleHighlightPhpClassCommand());
 
-    context.subscriptions.push(disposable);
+    context.subscriptions.push(createPHPClassDisposable, highlightPhpClassDisposable);
 }
 
-function handleCommand(): (...args: any[]) => any {
+function handleCreatePHPClassCommand(): (...args: any[]) => any {
     return async () => {
         const choice = await showChoice();
 
@@ -34,38 +35,49 @@ function handleCommand(): (...args: any[]) => any {
             return;
         }
 
-        const inheritedChoice = await handleInheritedChoice(choice);
-        const parsedPath = parsePath(inputPath, inheritedChoice);
-        const { className, appCodePath, packageName, parentClass = '', parentPackage = '' } = parsedPath;
-        const phpClassContent = await generateClassPHP(parsedPath, choice);
+        const parentPath = await handleInheritedChoice(choice);
 
-        if (!phpClassContent) {
+        const coreFolder = vscode.workspace.getConfiguration().get('m2helper.coreFolder', 'app/code');
+        const baseVsCodePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
+        const rootPath = path.join(baseVsCodePath, coreFolder);
+
+        try {
+            const phpClassInitializer = new PhpClassInitializer(rootPath, inputPath, { parentPath });
+            phpClassInitializer.initializeFiles();
+        } catch (error: any) {
+            vscode.window.showErrorMessage(error);
+        }
+    };
+}
+
+function handleHighlightPhpClassCommand(): (...args: any[]) => any {
+    return () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No active editor');
             return;
         }
 
-        const dirPath: string[] = appCodePath.split('\\');
-
-        if (!dirPath || !dirPath.length || dirPath.length < 2) {
+        const document = editor.document;
+        if (document.languageId !== 'php') {
+            vscode.window.showErrorMessage('This is not a PHP file');
             return;
         }
 
-        dirPath.pop();
+        const filePath = document.uri.fsPath;
+        const highlighter = new PhpClassHighlighter(filePath);
 
-        const modulePath = [dirPath[0], dirPath[1]].join('/');
+        try {
+            const highlightedLines = highlighter.highlightCode();
+            const content = highlightedLines.join('\n');
 
-        if (!fs.existsSync(modulePath)) {
-            generateModule(modulePath, packageName, parentPackage);
+            // Create a new untitled document with the highlighted content
+            vscode.workspace.openTextDocument({ content, language: 'html' }).then(doc => {
+                vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
+            });
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`Failed to highlight PHP class: ${error.message}`);
         }
-
-        if (choice === CREATE_INHERITED_CLASS) {
-            generateDi(modulePath, packageName, inputPath, parentClass);
-        }
-
-        const filePath = path.join(dirPath.join('/'), `${className}.php`);
-
-        createFile(filePath, phpClassContent);
-
-        vscode.window.showInformationMessage(`PHP class ${className}.php created at ${filePath}`);
     };
 }
 
@@ -130,7 +142,7 @@ async function getInputPath(): Promise<string | undefined> {
     return inputPath;
 }
 
-async function handleInheritedChoice(choice: string): Promise<InheritedClassChoiceArguments | null> {
+async function handleInheritedChoice(choice: string): Promise<string | null> {
     if (choice !== CREATE_INHERITED_CLASS) {
         return null;
     }
@@ -138,35 +150,10 @@ async function handleInheritedChoice(choice: string): Promise<InheritedClassChoi
     const parentClass = await vscode.window.showInputBox({ prompt: 'Enter the parent class with namespace' });
 
     if (!parentClass) {
-        vscode.window.showErrorMessage('Parent class cannot be empty.');
-        return null;
+        throw new Error('Parent class cannot be empty.');
     }
 
-    const parts = parentClass.split('\\');
-    const classPseudonym = `${parts[0]}${parts[parts.length - 1]}`;
-    const parentPackage = `${parts[0]}\\${parts[1]}`;
-
-
-    return {
-        parentClass,
-        classPseudonym,
-        parentPackage
-    };
-}
-
-function generateModule(modulePath: string, packageName: string, parentPackage: string = '') {
-    const registration = generateRegistrationPHP(packageName);
-    const module = generateModuleXML(packageName, parentPackage);
-
-    createFile(`${modulePath}/registration.php`, registration);
-    createFile(`${modulePath}/etc/module.xml`, module);
-}
-
-function generateDi(modulePath: string, packageName: string, classWithNamespace: string, parentClassWithNamespace: string) {
-    const diXmlPath = path.join(modulePath, 'etc', 'di.xml');
-    const diXml = generateDiXML(packageName, diXmlPath, classWithNamespace, parentClassWithNamespace);
-
-    createFile(`${modulePath}/etc/di.xml`, diXml);
+    return parentClass;
 }
 
 export function deactivate() { }
