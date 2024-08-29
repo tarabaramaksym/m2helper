@@ -18,10 +18,6 @@
       {
         "command": "extension.createPHPClass",
         "title": "Create PHP Class"
-      },
-      {
-        "command": "extension.highlightPhpClass",
-        "title": "Highlight PHP Class"
       }
     ],
     "keybindings": [
@@ -29,18 +25,13 @@
         "command": "extension.createPHPClass",
         "key": "ctrl+alt+c",
         "when": "editorTextFocus"
-      },
-      {
-        "command": "extension.highlightPhpClass",
-        "key": "ctrl+alt+h",
-        "mac": "cmd+alt+h"
       }
     ],
     "configuration": {
       "properties": {
         "m2helper.docBlockTemplate": {
           "type": "string",
-          "default": "/**\n * copyright @year \n */",
+          "default": "/**\n * @vendor\n * @module\n * copyright @year\n */",
           "description": "Template for the DocBlock comment",
           "editPresentation": "multilineText"
         },

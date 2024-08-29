@@ -6,13 +6,11 @@ import { ConfigurationManager } from 'State/ConfigurationManager';
 import { CLASS_PROPERTIES } from 'constant/classes';
 import { PhpClassBuilder } from 'Builder/PhpClassBuilder';
 import { PhpClassInitializer } from 'InitializerFile/PhpClassInitializer';
-import { PhpClassHighlighter } from './highlighter/PhpClassHighlighter';
 
 export function activate(context: vscode.ExtensionContext) {
     let createPHPClassDisposable = vscode.commands.registerCommand('extension.createPHPClass', handleCreatePHPClassCommand());
-    let highlightPhpClassDisposable = vscode.commands.registerCommand('extension.highlightPhpClass', handleHighlightPhpClassCommand());
 
-    context.subscriptions.push(createPHPClassDisposable, highlightPhpClassDisposable);
+    context.subscriptions.push(createPHPClassDisposable);
 }
 
 function handleCreatePHPClassCommand(): (...args: any[]) => any {
@@ -49,37 +47,6 @@ function handleCreatePHPClassCommand(): (...args: any[]) => any {
             phpClassInitializer.initializeFiles();
         } catch (error: any) {
             vscode.window.showErrorMessage(error);
-        }
-    };
-}
-
-function handleHighlightPhpClassCommand(): (...args: any[]) => any {
-    return () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showErrorMessage('No active editor');
-            return;
-        }
-
-        const document = editor.document;
-        if (document.languageId !== 'php') {
-            vscode.window.showErrorMessage('This is not a PHP file');
-            return;
-        }
-
-        const filePath = document.uri.fsPath;
-        const highlighter = new PhpClassHighlighter(filePath);
-
-        try {
-            const highlightedLines = highlighter.highlightCode();
-            const content = highlightedLines.join('\n');
-
-            // Create a new untitled document with the highlighted content
-            vscode.workspace.openTextDocument({ content, language: 'html' }).then(doc => {
-                vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
-            });
-        } catch (error: any) {
-            vscode.window.showErrorMessage(`Failed to highlight PHP class: ${error.message}`);
         }
     };
 }
