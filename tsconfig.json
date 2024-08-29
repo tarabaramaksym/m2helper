@@ -1,9 +1,9 @@
 {
 	"compilerOptions": {
 		"module": "commonjs",
-		"target": "es2020",
+		"target": "es2023",
 		"outDir": "./out",
-		"lib": ["es2020"],
+		"lib": ["es2023"],
 		"sourceMap": true,
 		"rootDir": "./src",
 		"strict": true,
@@ -13,8 +13,14 @@
 		"baseUrl": "./src",
 		"paths": {
 			"constant/*": ["constant/*"],
-			"util/*": ["util/*"],
-			"type/*": ["type/*"]
+			"Util/*": ["util/*"],
+			"type/*": ["type/*"],
+			"Processor/*": ["processor/*"],
+			"Builder/*": ["builder/*"],
+			"Initializer/*": ["initializer/*"],
+			"InitializerContent/*": ["initializer/content/*"],
+			"InitializerFile/*": ["initializer/file/*"],
+			"State/*": ["state/*"]
 		}
 	},
 	"include": ["src"],

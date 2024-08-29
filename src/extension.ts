@@ -1,20 +1,19 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { ADD_PROPERTY_TO_CLASS, CREATE_INHERITED_CLASS, CREATE_NEW_CLASS, INPUT_CUSTOM_PROPERTY_NAMESPACE } from "constant/choice";
-import { createFile } from 'util/file';
-import { generateClassPHP, generateDiXML, generateModuleXML, generateProperty, generateRegistrationPHP } from 'util/content-generator';
-import { parsePath } from 'util/parsers';
-import { InheritedClassChoiceArguments } from 'type/paths.type';
+import { ADD_PROPERTY_TO_CLASS, CREATE_INHERITED_CLASS, CREATE_NEW_CLASS, CREATE_PLUGIN_CLASS, INPUT_CUSTOM_PROPERTY_NAMESPACE } from "constant/choice";
+import { ConfigurationManager } from 'State/ConfigurationManager';
 import { CLASS_PROPERTIES } from 'constant/classes';
+import { PhpClassBuilder } from 'Builder/PhpClassBuilder';
+import { PhpClassInitializer } from 'InitializerFile/PhpClassInitializer';
 
 export function activate(context: vscode.ExtensionContext) {
-    let disposable = vscode.commands.registerCommand('extension.createPHPClass', handleCommand());
+    let createPHPClassDisposable = vscode.commands.registerCommand('extension.createPHPClass', handleCreatePHPClassCommand());
 
-    context.subscriptions.push(disposable);
+    context.subscriptions.push(createPHPClassDisposable);
 }
 
-function handleCommand(): (...args: any[]) => any {
+function handleCreatePHPClassCommand(): (...args: any[]) => any {
     return async () => {
         const choice = await showChoice();
 
@@ -33,38 +32,22 @@ function handleCommand(): (...args: any[]) => any {
             return;
         }
 
-        const inheritedChoice = await handleInheritedChoice(choice);
-        const parsedPath = parsePath(inputPath, inheritedChoice);
-        const { className, appCodePath, packageName, parentClass = '', parentPackage = '' } = parsedPath;
-        const phpClassContent = await generateClassPHP(parsedPath, choice);
+        const parentPath = await handleInheritedChoice(choice);
+        const pluginName = await handlePluginChoice(choice);
 
-        if (!phpClassContent) {
-            return;
+        const coreFolder = vscode.workspace.getConfiguration().get('m2helper.coreFolder', 'app/code');
+        const baseVsCodePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
+        const rootPath = path.join(baseVsCodePath, coreFolder);
+
+        const configurationManager = ConfigurationManager.getInstance();
+        configurationManager.baseDoc = vscode.workspace.getConfiguration().get('m2helper.docBlockTemplate', '/**\n * @year\n */');
+
+        try {
+            const phpClassInitializer = new PhpClassInitializer(rootPath, inputPath, { parentPath, diType: choice === CREATE_PLUGIN_CLASS ? 'plugin' : 'preference', pluginName });
+            phpClassInitializer.initializeFiles();
+        } catch (error: any) {
+            vscode.window.showErrorMessage(error);
         }
-
-        const dirPath: string[] = appCodePath.split('\\');
-
-        if (!dirPath || !dirPath.length || dirPath.length < 2) {
-            return;
-        }
-
-        dirPath.pop();
-
-        const modulePath = [dirPath[0], dirPath[1]].join('/');
-
-        if (!fs.existsSync(modulePath)) {
-            generateModule(modulePath, packageName, parentPackage);
-        }
-
-        if (choice === CREATE_INHERITED_CLASS) {
-            generateDi(modulePath, packageName, inputPath, parentClass);
-        }
-
-        const filePath = path.join(dirPath.join('/'), `${className}.php`);
-
-        createFile(filePath, phpClassContent);
-
-        vscode.window.showInformationMessage(`PHP class ${className}.php created at ${filePath}`);
     };
 }
 
@@ -81,20 +64,14 @@ async function handleAddPropertyChoice() {
     let choiceData = null;
 
     if (choice === INPUT_CUSTOM_PROPERTY_NAMESPACE) {
-        const namespace = await vscode.window.showInputBox({ prompt: 'Enter class with the namespace (you can write "as Pseudonym" at the end)' });
+        choiceData = await vscode.window.showInputBox({ prompt: 'Enter class with the namespace (you can write "as Pseudonym" at the end)' });
 
-        if (!namespace) {
+        if (!choiceData) {
             vscode.window.showErrorMessage('Namespace was not inputted');
             return;
         }
 
-        const splitted = namespace.split(' ');
-        const className = splitted.length > 1 ? splitted[splitted.length - 1] : namespace.substring(namespace.lastIndexOf('\\') + 1);
-
-        choiceData = {
-            namespace,
-            className
-        };
+        choiceData = choiceData.trim();
     } else {
         choiceData = CLASS_PROPERTIES[choice];
     }
@@ -106,29 +83,21 @@ async function handleAddPropertyChoice() {
         return;
     }
 
-    const document = editor.document;
-    const filePath = document.uri.fsPath;
+    const filePath = editor.document.uri.fsPath;
 
     if (!filePath) {
         vscode.window.showErrorMessage('File is not opened');
         return;
     }
 
-    const contents = generateProperty(filePath, choiceData);
+    const builder = new PhpClassBuilder(filePath);
+    builder.addProperty(choiceData);
 
-    fs.writeFileSync(filePath, contents);
-
-    // TODO: Figure out how to format code without bugs
-    // setTimeout(async () => {
-    //     vscode.window.showErrorMessage('Formatted');
-    //     await vscode.commands.executeCommand('editor.action.formatDocument');
-    //     await vscode.commands.executeCommand('workbench.action.files.save');
-
-    // }, 1000);
+    fs.writeFileSync(filePath, builder.toString());
 }
 
 async function showChoice(): Promise<string | undefined> {
-    return vscode.window.showQuickPick([CREATE_NEW_CLASS, CREATE_INHERITED_CLASS, ADD_PROPERTY_TO_CLASS], {
+    return vscode.window.showQuickPick([CREATE_NEW_CLASS, CREATE_INHERITED_CLASS, CREATE_PLUGIN_CLASS, ADD_PROPERTY_TO_CLASS], {
         placeHolder: 'Choose an option'
     });
 }
@@ -143,43 +112,32 @@ async function getInputPath(): Promise<string | undefined> {
     return inputPath;
 }
 
-async function handleInheritedChoice(choice: string): Promise<InheritedClassChoiceArguments | null> {
-    if (choice !== CREATE_INHERITED_CLASS) {
+async function handleInheritedChoice(choice: string): Promise<string | null> {
+    if (choice !== CREATE_INHERITED_CLASS && choice !== CREATE_PLUGIN_CLASS) {
         return null;
     }
 
     const parentClass = await vscode.window.showInputBox({ prompt: 'Enter the parent class with namespace' });
 
     if (!parentClass) {
-        vscode.window.showErrorMessage('Parent class cannot be empty.');
+        throw new Error('Parent class cannot be empty.');
+    }
+
+    return parentClass;
+}
+
+async function handlePluginChoice(choice: string): Promise<string | null> {
+    if (choice !== CREATE_PLUGIN_CLASS) {
         return null;
     }
 
-    const parts = parentClass.split('\\');
-    const classPseudonym = `${parts[0]}${parts[parts.length - 1]}`;
-    const parentPackage = `${parts[0]}\\${parts[1]}`;
+    const pluginName = await vscode.window.showInputBox({ prompt: 'Enter the plugin name' });
 
+    if (!pluginName) {
+        throw new Error('Plugin name cannot be empty.');
+    }
 
-    return {
-        parentClass,
-        classPseudonym,
-        parentPackage
-    };
-}
-
-function generateModule(modulePath: string, packageName: string, parentPackage: string = '') {
-    const registration = generateRegistrationPHP(packageName);
-    const module = generateModuleXML(packageName, parentPackage);
-
-    createFile(`${modulePath}/registration.php`, registration);
-    createFile(`${modulePath}/etc/module.xml`, module);
-}
-
-function generateDi(modulePath: string, packageName: string, classWithNamespace: string, parentClassWithNamespace: string) {
-    const diXmlPath = path.join(modulePath, 'etc', 'di.xml');
-    const diXml = generateDiXML(packageName, diXmlPath, classWithNamespace, parentClassWithNamespace);
-
-    createFile(`${modulePath}/etc/di.xml`, diXml);
+    return pluginName;
 }
 
 export function deactivate() { }

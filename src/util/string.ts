@@ -1,10 +1,15 @@
-export function lastIndexOf(string: string, search: RegExp) {
-    let lastIndex;
-    let match;
+export const t4 = (str: string) => {
+    return `    ${str}`;
+};
 
-    while ((match = search.exec(string)) !== null) {
-        lastIndex = match;
-    }
+export const t5 = (str: string) => {
+    return `     ${str}`;
+};
 
-    return lastIndex;
-}
+export const t8 = (str: string) => {
+    return `        ${str}`;
+};
+
+export const t12 = (str: string) => {
+    return `            ${str}`;
+};

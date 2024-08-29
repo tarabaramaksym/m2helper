@@ -4,7 +4,7 @@
   "publisher": "tarabara",
   "description": "Magento2 helper/utilities VS Code extension.",
   "repository": "tarabaramaksym/m2helper",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "engines": {
     "vscode": "^1.91.0"
   },
@@ -26,15 +26,29 @@
         "key": "ctrl+alt+c",
         "when": "editorTextFocus"
       }
-    ]
+    ],
+    "configuration": {
+      "properties": {
+        "m2helper.docBlockTemplate": {
+          "type": "string",
+          "default": "/**\n * @vendor\n * @module\n * copyright @year\n */",
+          "description": "Template for the DocBlock comment",
+          "editPresentation": "multilineText"
+        },
+        "m2helper.coreFolder": {
+          "type": "string",
+          "default": "app/code",
+          "description": "Core folder path"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "webpack",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "npx ts-node src/test/runTest.ts"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.7",
@@ -46,7 +60,8 @@
     "@vscode/test-electron": "^2.4.0",
     "eslint": "^8.57.0",
     "ts-loader": "^9.5.1",
-    "typescript": "^5.4.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4",
     "webpack": "^5.93.0",
     "webpack-cli": "^5.1.4"
   }
