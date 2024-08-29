@@ -2,16 +2,26 @@ import { BaseContentInitializer } from './BaseContentInitializer';
 import { DocBlockContentInitializer } from './DocBlockContentInitializer';
 import { t4 } from 'Util/string';
 
-export interface DocBlockInitializerOptions {
+export interface PhpRegistrationInitializerOptions {
     baseModuleName: string;
 }
 
-export class PhpRegistrationContentInitializer extends BaseContentInitializer<DocBlockInitializerOptions> {
-    baseDoc!: string;
+export class PhpRegistrationContentInitializer extends BaseContentInitializer<PhpRegistrationInitializerOptions> {
     baseModuleName!: string;
+    docBlockContentInitializer!: DocBlockContentInitializer | null;
+
+    constructor(options: PhpRegistrationInitializerOptions, docBlockContentInitializer: DocBlockContentInitializer | null = null) {
+        super(options);
+
+        this.docBlockContentInitializer = docBlockContentInitializer;
+    }
 
     initializeContent(): string {
-        const doc = new DocBlockContentInitializer({ fileFormat: 'php' }).initializeContent();
+        if (this.docBlockContentInitializer) {
+            this.docBlockContentInitializer.setFileFormat('php');
+        }
+
+        const doc = (this.docBlockContentInitializer || new DocBlockContentInitializer({ fileFormat: 'php' })).initializeContent();
 
         const contentLines = [
             '<?php',
@@ -32,7 +42,7 @@ export class PhpRegistrationContentInitializer extends BaseContentInitializer<Do
         return contentLines.join('\n');
     }
 
-    protected initializeOptions(options: DocBlockInitializerOptions): void {
+    protected initializeOptions(options: PhpRegistrationInitializerOptions): void {
         const { baseModuleName } = options;
 
         this.baseModuleName = baseModuleName;

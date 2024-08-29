@@ -1,9 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { ADD_PROPERTY_TO_CLASS, CREATE_INHERITED_CLASS, CREATE_NEW_CLASS, INPUT_CUSTOM_PROPERTY_NAMESPACE } from "constant/choice";
-import { createFile } from 'Util/file';
-import { generateClassPHP, generateDiXML, generateModuleXML, generateProperty, generateRegistrationPHP } from 'Util/content-generator';
+import { ADD_PROPERTY_TO_CLASS, CREATE_INHERITED_CLASS, CREATE_NEW_CLASS, CREATE_PLUGIN_CLASS, INPUT_CUSTOM_PROPERTY_NAMESPACE } from "constant/choice";
+import { ConfigurationManager } from 'State/ConfigurationManager';
 import { CLASS_PROPERTIES } from 'constant/classes';
 import { PhpClassBuilder } from 'Builder/PhpClassBuilder';
 import { PhpClassInitializer } from 'InitializerFile/PhpClassInitializer';
@@ -36,13 +35,17 @@ function handleCreatePHPClassCommand(): (...args: any[]) => any {
         }
 
         const parentPath = await handleInheritedChoice(choice);
+        const pluginName = await handlePluginChoice(choice);
 
         const coreFolder = vscode.workspace.getConfiguration().get('m2helper.coreFolder', 'app/code');
         const baseVsCodePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
         const rootPath = path.join(baseVsCodePath, coreFolder);
 
+        const configurationManager = ConfigurationManager.getInstance();
+        configurationManager.baseDoc = vscode.workspace.getConfiguration().get('m2helper.docBlockTemplate', '/**\n * @year\n */');
+
         try {
-            const phpClassInitializer = new PhpClassInitializer(rootPath, inputPath, { parentPath });
+            const phpClassInitializer = new PhpClassInitializer(rootPath, inputPath, { parentPath, diType: choice === CREATE_PLUGIN_CLASS ? 'plugin' : 'preference', pluginName });
             phpClassInitializer.initializeFiles();
         } catch (error: any) {
             vscode.window.showErrorMessage(error);
@@ -127,7 +130,7 @@ async function handleAddPropertyChoice() {
 }
 
 async function showChoice(): Promise<string | undefined> {
-    return vscode.window.showQuickPick([CREATE_NEW_CLASS, CREATE_INHERITED_CLASS, ADD_PROPERTY_TO_CLASS], {
+    return vscode.window.showQuickPick([CREATE_NEW_CLASS, CREATE_INHERITED_CLASS, CREATE_PLUGIN_CLASS, ADD_PROPERTY_TO_CLASS], {
         placeHolder: 'Choose an option'
     });
 }
@@ -143,7 +146,7 @@ async function getInputPath(): Promise<string | undefined> {
 }
 
 async function handleInheritedChoice(choice: string): Promise<string | null> {
-    if (choice !== CREATE_INHERITED_CLASS) {
+    if (choice !== CREATE_INHERITED_CLASS && choice !== CREATE_PLUGIN_CLASS) {
         return null;
     }
 
@@ -154,6 +157,20 @@ async function handleInheritedChoice(choice: string): Promise<string | null> {
     }
 
     return parentClass;
+}
+
+async function handlePluginChoice(choice: string): Promise<string | null> {
+    if (choice !== CREATE_PLUGIN_CLASS) {
+        return null;
+    }
+
+    const pluginName = await vscode.window.showInputBox({ prompt: 'Enter the plugin name' });
+
+    if (!pluginName) {
+        throw new Error('Plugin name cannot be empty.');
+    }
+
+    return pluginName;
 }
 
 export function deactivate() { }

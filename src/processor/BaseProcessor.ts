@@ -1,4 +1,3 @@
-import * as vscode from 'vscode';
 import * as fs from 'fs';
 
 export abstract class BaseProcessor {
@@ -6,7 +5,7 @@ export abstract class BaseProcessor {
     contentLines: Array<string>;
     filePath: string;
 
-    constructor(filePath = '') {
+    constructor(filePath: string) {
         this.content = '';
         this.contentLines = [];
         this.filePath = filePath;
@@ -21,22 +20,6 @@ export abstract class BaseProcessor {
     }
 
     private initializeContent() {
-        if (!this.filePath) {
-            const {
-                document: {
-                    uri: {
-                        fsPath = ''
-                    } = {}
-                } = {}
-            } = vscode.window.activeTextEditor || {};
-
-            if (!fsPath) {
-                throw new Error('Open file first');
-            }
-
-            this.filePath = fsPath;
-        }
-
         this.setContent(fs.readFileSync(this.filePath).toString());
     };
 

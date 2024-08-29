@@ -42,10 +42,6 @@ export class PhpClassHighlighter {
             return HighlightColor.ConstructDocArg;
         }
 
-        if (this.isLineInRange(lineIndex, classContentStatusProperties.constructorArgStart - 1, classContentStatusProperties.constructorStart - 2)) {
-            return HighlightColor.ConstructArg;
-        }
-
         if (this.isLineInRange(lineIndex, classContentStatusProperties.constructorStart, classContentStatusProperties.constructorEnd - 1)) {
             return HighlightColor.ConstructBody;
         }

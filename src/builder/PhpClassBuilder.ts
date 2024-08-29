@@ -129,21 +129,25 @@ export class PhpClassBuilder extends BaseBuilder {
         const constructorStartIndex = hasConstructor ? constructorDocStart || constructorStart : classStart + 2;
 
         const contentAfterUseNamespacesStart = (useNamespaceEnd === -1 ? namespace : useNamespaceEnd) + 1;
-        const contentAfterUseNamespaces = contentLines.slice(contentAfterUseNamespacesStart, classStart + 2);
-        const contentAfterProperties = contentLines.slice(hasConstructor ? constructorEnd : constructorStartIndex);
+        const contentAfterUseNamespaces = contentLines.slice(contentAfterUseNamespacesStart, classStart + 1);
+        const contentAfterProperties = contentLines.slice(hasConstructor ? constructorEnd + 1 : constructorStartIndex);
 
         return [
             ...contentBeforeUseNamespaces,
             ...useNamespaces,
             ...contentAfterUseNamespaces,
+            '{',
             ...classProperties,
             '',
+            t4('/**'),
             ...constructDocArgProperties,
             t5('*/'),
+            t4('public function __construct('),
             ...constructArgProperties,
             t4(') {'),
             ...constructBodyProperties,
-            ...contentAfterProperties
+            t4('}'),
+            ...contentAfterProperties,
         ].join('\n');
 
     }

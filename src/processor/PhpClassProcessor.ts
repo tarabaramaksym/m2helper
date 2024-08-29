@@ -33,6 +33,23 @@ export class PhpClassProcessor extends BaseProcessor {
         this.constructArgProperties = this.initializeConstructArgProperties();
         this.constructBodyProperties = this.initializeConstructBodyProperties();
         this.useNamespaces = this.initializeUseNamespaces();
+        this.savePropertiesToFile();   
+    }
+
+    savePropertiesToFile() {
+        const properties = {
+            classContentStatusProperties: this.classContentStatusProperties,
+            classProperties: this.classProperties,
+            useNamespaces: this.useNamespaces,
+            constructDocArgProperties: this.constructDocArgProperties,
+            constructArgProperties: this.constructArgProperties,
+            constructBodyProperties: this.constructBodyProperties
+        };
+        const fs = require('fs');
+        const vscode = require('vscode');
+        const path = require('path');
+        const outputPath = path.join(vscode.workspace.rootPath, 'processor_properties_beforechanges.json');
+        fs.writeFileSync(outputPath, JSON.stringify(properties, null, 2));
     }
 
     validateContent(): boolean {
@@ -151,7 +168,7 @@ export class PhpClassProcessor extends BaseProcessor {
             return [];
         }
 
-        return this.contentLines.slice(constructorDocStart, constructorDocEnd);
+        return this.contentLines.slice(constructorDocStart + 1, constructorDocEnd);
     }
 
     private initializeConstructArgProperties() {
@@ -163,15 +180,13 @@ export class PhpClassProcessor extends BaseProcessor {
             return [];
         }
 
-        let constructorArgStart = constructorStart;
+        let constructorArgStart = constructorStart + 1;
 
-        while (this.contentLines[constructorArgStart - 1].indexOf('(') === -1) {
-            constructorArgStart--;
+        while (this.contentLines[constructorArgStart].indexOf(')') === -1) {
+            constructorArgStart++;
         }
 
-        this.classContentStatusProperties.constructorArgStart = constructorArgStart;
-
-        return this.contentLines.slice(constructorArgStart - 1, constructorStart - 1);
+        return this.contentLines.slice(constructorStart + 1, constructorArgStart);
     }
 
     private initializeConstructBodyProperties() {
@@ -179,17 +194,22 @@ export class PhpClassProcessor extends BaseProcessor {
             constructorStart
         } = this.classContentStatusProperties;
 
-        if (constructorStart === -1 || constructorStart === -1) {
+        if (constructorStart === -1) {
             return [];
         }
 
         let constructBodyEnd = constructorStart;
+        let constructBodyStart = constructorStart;
 
         while (this.contentLines[constructBodyEnd].indexOf('}') === -1) {
+            if (this.contentLines[constructBodyEnd].indexOf('{') !== -1) {
+                constructBodyStart = constructBodyEnd + 1;
+            }
+
             constructBodyEnd++;
         }
 
-        return this.contentLines.slice(constructorStart, constructBodyEnd);
+        return this.contentLines.slice(constructBodyStart, constructBodyEnd);
     }
 
     private initializeUseNamespaces() {

@@ -41,7 +41,8 @@
         "m2helper.docBlockTemplate": {
           "type": "string",
           "default": "/**\n * copyright @year \n */",
-          "description": "Template for the DocBlock comment"
+          "description": "Template for the DocBlock comment",
+          "editPresentation": "multilineText"
         },
         "m2helper.coreFolder": {
           "type": "string",

@@ -1,3 +1,4 @@
+import { ConfigurationManager } from 'State/ConfigurationManager';
 import { BaseContentInitializer } from './BaseContentInitializer';
 import * as vscode from 'vscode';
 
@@ -9,6 +10,7 @@ export interface DocBlockInitializerOptions {
 
 export class DocBlockContentInitializer extends BaseContentInitializer<DocBlockInitializerOptions> {
     baseDoc!: string;
+    editedDoc!: string;
     fileFormat!: MarkupWithArrowExclamationComment;
 
     constructor(options: DocBlockInitializerOptions) {
@@ -16,7 +18,7 @@ export class DocBlockContentInitializer extends BaseContentInitializer<DocBlockI
     }
 
     initializeContent(): string {
-        const editedContent = this.baseDoc.replace('@year', new Date().getFullYear().toString());
+        const editedContent = this.getDocBlockTemplate();
         let content = '';
 
         switch (this.fileFormat) {
@@ -31,10 +33,25 @@ export class DocBlockContentInitializer extends BaseContentInitializer<DocBlockI
         return content;
     }
 
+    getDocBlockTemplate(): string {
+        if (!this.editedDoc) {
+            const { vendor, module } = ConfigurationManager.getInstance();
+
+            this.editedDoc = this.baseDoc.replace('@year', new Date().getFullYear().toString()).replace('@vendor', vendor).replace('@module', module);
+        }
+
+        return this.editedDoc;
+    }
+
+    setFileFormat(fileFormat: MarkupWithArrowExclamationComment): void {
+        this.fileFormat = fileFormat;
+    }
+
     protected initializeOptions(options: DocBlockInitializerOptions): void {
         const { fileFormat } = options;
+        const { baseDoc } = ConfigurationManager.getInstance();
 
         this.fileFormat = fileFormat;
-        this.baseDoc = vscode.workspace.getConfiguration().get('m2helper.docBlockTemplate', '/**\n * @year\n */');
+        this.baseDoc = baseDoc;
     }
 }

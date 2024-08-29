@@ -1,21 +1,23 @@
+import { ConfigurationManager } from 'State/ConfigurationManager';
 import { BaseContentInitializer } from './BaseContentInitializer';
 import { DocBlockContentInitializer } from './DocBlockContentInitializer';
 
 export interface DocBlockInitializerOptions {
-    namespace: string;
-    className: string;
-    parentClass: string | null;
-    parentUseNamespace: string | null;
 }
 
 export class PhpClassContentInitializer extends BaseContentInitializer<DocBlockInitializerOptions> {
-    namespace!: string;
-    className!: string;
-    parentClass!: string | null;
-    parentUseNamespace!: string | null;
-
     initializeContent(): string {
         const doc = new DocBlockContentInitializer({ fileFormat: 'php' }).initializeContent();
+
+        const { namespace, className, parentClass, parentUseNamespace, diType } = ConfigurationManager.getInstance();
+
+        let parentsVendor = '';
+        const isInheritance = parentClass !== '' && diType === 'preference';
+
+        if (isInheritance) {
+            parentsVendor = parentUseNamespace?.trim().replace('/', '\\') || '';
+            parentsVendor = parentsVendor.split('\\')[0];
+        }
 
         const contentLines = [
             '<?php',
@@ -23,13 +25,14 @@ export class PhpClassContentInitializer extends BaseContentInitializer<DocBlockI
             '',
             'declare(strict_types=1);',
             '',
-            `namespace ${this.namespace};`,
-            ...(this.parentUseNamespace ? [
+            `namespace ${namespace};`,
+            ...(isInheritance ? [
                 '',
-                `use ${this.parentUseNamespace};`
+                `use ${parentUseNamespace} as ${parentsVendor}${parentClass};`
             ] : []),
             '',
-            `class ${this.className}${this.parentClass ? ` extends ${this.parentClass}` : ''} {`,
+            `class ${className}${isInheritance ? ` extends ${parentsVendor}${parentClass}` : ''}`,
+            '{',
             '}',
             ''
         ];
@@ -38,11 +41,5 @@ export class PhpClassContentInitializer extends BaseContentInitializer<DocBlockI
     }
 
     protected initializeOptions(options: DocBlockInitializerOptions): void {
-        const { namespace, className, parentClass, parentUseNamespace } = options;
-
-        this.namespace = namespace;
-        this.className = className;
-        this.parentClass = parentClass;
-        this.parentUseNamespace = parentUseNamespace;
     }
 }
